@@ -27,7 +27,7 @@ class WarehouseAnalyzer {
      * @param maxPrice the upper bound (inclusive); must not be null and should be >= minPrice
      * @return a list of products with minPrice <= price <= maxPrice, in the warehouse's iteration order
      */
-    public List<Product> findProductsInPriceRange(BigDecimal minPrice, BigDecimal maxPrice) {
+    private List<Product> findProductsInPriceRange(BigDecimal minPrice, BigDecimal maxPrice) {
         List<Product> result = new ArrayList<>();
         for (Product p : warehouse.getProducts()) {
             BigDecimal price = p.price();
