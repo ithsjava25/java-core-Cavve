@@ -12,14 +12,19 @@ public class Warehouse {
      */
     private final List<Product> products = new ArrayList<>();
     private final List<Product> changedProducts = new ArrayList<>();
-
     private static final Map<String, Warehouse> INSTANCES = new HashMap<>();
 
-
+    private Warehouse() {}
 
     //returns the same instance per unique name
+    //Om det inte finns ett värde för nyckeln name,
+    // skapa ett nytt med new Warehouse() och lägg till det. Annars returnera det befintliga
     public static Warehouse getInstance(String name){
         return INSTANCES.computeIfAbsent(name, k->new Warehouse());
+    }
+
+    public static Warehouse getInstance(){
+        return getInstance("Warehouse");
     }
 
     public void clearProducts(){
@@ -30,6 +35,9 @@ public class Warehouse {
     public void addProduct(Product product) {
         if (product == null){
            throw new IllegalArgumentException("Product cannot be null.");
+        }
+        if (!getProductById(product.uuid()).equals(Optional.empty())){
+            throw new IllegalArgumentException("Product with that id already exists, use updateProduct for updates.");
         }
         products.add(product);
     }

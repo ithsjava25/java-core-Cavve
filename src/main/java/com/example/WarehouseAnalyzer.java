@@ -27,7 +27,7 @@ class WarehouseAnalyzer {
      * @param maxPrice the upper bound (inclusive); must not be null and should be >= minPrice
      * @return a list of products with minPrice <= price <= maxPrice, in the warehouse's iteration order
      */
-    private List<Product> findProductsInPriceRange(BigDecimal minPrice, BigDecimal maxPrice) {
+    public List<Product> findProductsInPriceRange(BigDecimal minPrice, BigDecimal maxPrice) {
         List<Product> result = new ArrayList<>();
         for (Product p : warehouse.getProducts()) {
             BigDecimal price = p.price();
@@ -138,30 +138,45 @@ class WarehouseAnalyzer {
     }
     
     /**
-     * Identifies products whose price deviates from the mean by more than the specified
-     * number of standard deviations. Uses population standard deviation over all products.
-     * Test expectation: with a mostly tight cluster and two extremes, calling with 2.0 returns the two extremes.
+     *Identifies price outliers by utilizing IQR algorithm
+     * 1.5
+     *     Q2 = median of the dataset.
+     *     Q1 = median of n smallest data points.
+     *     Q3 = median of n highest data points.
      *
-     * @param standardDeviations threshold in standard deviations (e.g., 2.0)
-     * @return list of products considered outliers
+     * @param iqrMulti
+     * @return list of outlier products
      */
-    public List<Product> findPriceOutliers(double standardDeviations) {
-        List<Product> products = warehouse.getProducts();
-        int n = products.size();
-        if (n == 0) return List.of();
-        double sum = products.stream().map(Product::price).mapToDouble(bd -> bd.doubleValue()).sum();
-        double mean = sum / n;
-        double variance = products.stream()
-                .map(Product::price)
-                .mapToDouble(bd -> Math.pow(bd.doubleValue() - mean, 2))
-                .sum() / n;
-        double std = Math.sqrt(variance);
-        double threshold = standardDeviations * std;
-        List<Product> outliers = new ArrayList<>();
-        for (Product p : products) {
-            double diff = Math.abs(p.price().doubleValue() - mean);
-            if (diff > threshold) outliers.add(p);
-        }
+    public List<Product> findPriceOutliers(double iqrMulti) {
+
+        //1. Sort all your prices
+        List<Product> products = warehouse.getProducts().stream()
+                .sorted(Comparator.comparing(Product::price))
+                .collect(Collectors.toList());
+
+        //2. Find the 1st quarter Q1, the price at the 25% mark
+        double Q1 = products.get(products.size() / 4).price().doubleValue();
+
+        //3. Find Q3 the price at the 75% mark
+        double Q3 =  products.get(3 * products.size() / 4).price().doubleValue();
+
+        //4. Caluclate IQR = Q3 - Q1
+        double IQR = Q3 - Q1;
+
+        //5. Define the normal boundaries. A standard rule is:
+        // Lower bound: Q1-1.5 * IQR
+        double lowerBound = Q1 - (iqrMulti * IQR);
+        // Upper bound: Q3+1.5 * IQR
+        double upperBound = Q3 + (iqrMulti * IQR);
+
+        //stream igen för outliers
+        List<Product> outliers = products.stream()
+                .filter(p-> {
+                    double price =  p.price().doubleValue();
+                    return price < lowerBound || price > upperBound;
+                })
+                .toList();
+
         return outliers;
     }
     
