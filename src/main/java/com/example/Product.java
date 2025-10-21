@@ -20,25 +20,23 @@ abstract class Product {
         this.price = price;
     }
 
-    public UUID getId() {return id;}
-    public String getName() {return name;}
-    public Category getCategory() {return category;}
-    public BigDecimal getPrice() {return price;}
-
-    public void setPrice(BigDecimal price) {this.price = price;}
-
-
-    public abstract String productDetails();
-
-    //returnerar price
-    public BigDecimal price() {return price;}
+    //returnerar UUID
+    public UUID uuid() {return id;}
     //returnerar name
     public String name() {return name;}
     //returnerar category
     public Category category() {return category;}
-    //returnerar UUID
-    public UUID uuid() {return id;}
+    //returnerar price
+    public BigDecimal price() {return price;}
+    public void setPrice(BigDecimal price) {this.price = price;}
+    public abstract String productDetails();
+
 }
+
+//    public UUID getId() {return id;}
+//    public String getName() {return name;}
+//    public Category getCategory() {return category;}
+//    public BigDecimal getPrice() {return price;}
 
 /*
 - Product (abstract base class)
