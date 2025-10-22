@@ -129,8 +129,9 @@ class WarehouseAnalyzer {
             if (weightSum > 0) {
                 avg = weightedSum.divide(BigDecimal.valueOf(weightSum), 2, RoundingMode.HALF_UP);
             } else {
-                BigDecimal sum = items.stream().map(Product::price).reduce(BigDecimal.ZERO, BigDecimal::add);
-                avg = sum.divide(BigDecimal.valueOf(items.size()), 2, RoundingMode.HALF_UP);
+//                BigDecimal sum = items.stream().map(Product::price).reduce(BigDecimal.ZERO, BigDecimal::add);
+//                avg = sum.divide(BigDecimal.valueOf(items.size()), 2, RoundingMode.HALF_UP);
+                avg = weightedSum.divide(new BigDecimal(items.size()), 2, RoundingMode.HALF_UP);
             }
             result.put(cat, avg);
         }
@@ -191,7 +192,7 @@ class WarehouseAnalyzer {
      */
     public List<ShippingGroup> optimizeShippingGroups(BigDecimal maxWeightPerGroup) {
         double maxW = maxWeightPerGroup.doubleValue();
-        List<Shippable> items = warehouse.shippableProducts();
+        List<Shippable> items = new ArrayList(warehouse.shippableProducts());
         // Sort by descending weight (First-Fit Decreasing)
         items.sort((a, b) -> Double.compare(Objects.requireNonNullElse(b.weight(), 0.0), Objects.requireNonNullElse(a.weight(), 0.0)));
         List<List<Shippable>> bins = new ArrayList<>();
@@ -318,8 +319,11 @@ class ShippingGroup {
     public ShippingGroup(List<Shippable> products) {
         this.products = new ArrayList<>(products);
         this.totalWeight = products.stream()
+//                .map(Shippable::weight)
+//                .reduce(0.0, Double::sum);
                 .map(Shippable::weight)
-                .reduce(0.0, Double::sum);
+                .map(BigDecimal::valueOf)
+                .reduce(BigDecimal.ZERO, BigDecimal::add).doubleValue();
         this.totalShippingCost = products.stream()
                 .map(Shippable::calculateShippingCost)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);

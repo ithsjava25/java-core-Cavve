@@ -30,7 +30,7 @@ public class Warehouse {
         if (product == null){
             throw new IllegalArgumentException("Product cannot be null.");
         }
-        if (!getProductById(product.uuid()).equals(Optional.empty())){
+        if (getProductById(product.uuid()).isPresent()) {
             throw new IllegalArgumentException("Product with that id already exists, use updateProduct for updates.");
         }
         products.add(product);
