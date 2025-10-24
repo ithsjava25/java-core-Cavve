@@ -41,7 +41,9 @@ public class Warehouse {
     //GetProducts
     public List<Product> getProducts() {
 //        return products.stream().copyOf();
-        return List.copyOf(products);
+//        return List.copyOf(products);
+        //Third times the charm?...
+        return Collections.unmodifiableList(products);
     }
 
     //GetproductBYID - stream find first

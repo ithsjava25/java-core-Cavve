@@ -132,9 +132,8 @@ class WarehouseAnalyzer {
             if (weightSum > 0) {
                 avg = weightedSum.divide(BigDecimal.valueOf(weightSum), 2, RoundingMode.HALF_UP);
             } else {
-//                BigDecimal sum = items.stream().map(Product::price).reduce(BigDecimal.ZERO, BigDecimal::add);
-//                avg = sum.divide(BigDecimal.valueOf(items.size()), 2, RoundingMode.HALF_UP);
-                avg = weightedSum.divide(new BigDecimal(items.size()), 2, RoundingMode.HALF_UP);
+                BigDecimal sum = items.stream().map(Product::price).reduce(BigDecimal.ZERO, BigDecimal::add);
+                avg = sum.divide(BigDecimal.valueOf(items.size()), 2, RoundingMode.HALF_UP);
             }
             result.put(cat, avg);
         }
@@ -143,7 +142,6 @@ class WarehouseAnalyzer {
 
     /**
      * Identifies price outliers by utilizing IQR algorithm
-     * 1.5
      * Q2 = median of the dataset.
      * Q1 = median of n smallest data points.
      * Q3 = median of n highest data points.
@@ -169,9 +167,9 @@ class WarehouseAnalyzer {
         //4. Caluclate IQR = Q3 - Q1
         double IQR = Q3 - Q1;
         //5. Define the normal boundaries. A standard rule is:
-        // Lower bound: Q1-1.5 * IQR
+        // Lower bound:
         double lowerBound = Q1 - (iqrMulti * IQR);
-        // Upper bound: Q3+1.5 * IQR
+        // Upper bound:
         double upperBound = Q3 + (iqrMulti * IQR);
 
         //stream igen för outliers
