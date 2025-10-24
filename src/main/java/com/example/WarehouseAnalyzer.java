@@ -5,6 +5,7 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -13,12 +14,13 @@ import java.util.stream.Collectors;
  */
 class WarehouseAnalyzer {
     private final Warehouse warehouse;
-    
+
     public WarehouseAnalyzer(Warehouse warehouse) {
         this.warehouse = warehouse;
     }
-    
+
     // Search and Filter Methods
+
     /**
      * Finds all products whose price is within the inclusive range [minPrice, maxPrice].
      * Based on tests: products priced exactly at the boundaries must be included; values outside are excluded.
@@ -37,7 +39,7 @@ class WarehouseAnalyzer {
         }
         return result;
     }
-    
+
     /**
      * Returns all perishable products that expire within the next {@code days} days counting from today,
      * including items that expire today, and excluding items already expired. Non-perishables are ignored.
@@ -60,7 +62,7 @@ class WarehouseAnalyzer {
         }
         return result;
     }
-    
+
     /**
      * Performs a case-insensitive partial name search.
      * Test expectation: searching for "milk" returns all products whose name contains that substring,
@@ -79,7 +81,7 @@ class WarehouseAnalyzer {
         }
         return result;
     }
-    
+
     /**
      * Returns all products whose price is strictly greater than the given price.
      * While not asserted directly by tests, this helper is consistent with price-based filtering.
@@ -96,8 +98,9 @@ class WarehouseAnalyzer {
         }
         return result;
     }
-    
+
     // Analytics Methods
+
     /**
      * Computes the average price per category using product weight as the weighting factor when available.
      * Test expectation: for FoodProduct with weights, use weighted average = sum(price*weight)/sum(weight).
@@ -137,33 +140,34 @@ class WarehouseAnalyzer {
         }
         return result;
     }
-    
+
     /**
-     *Identifies price outliers by utilizing IQR algorithm
+     * Identifies price outliers by utilizing IQR algorithm
      * 1.5
-     *     Q2 = median of the dataset.
-     *     Q1 = median of n smallest data points.
-     *     Q3 = median of n highest data points.
+     * Q2 = median of the dataset.
+     * Q1 = median of n smallest data points.
+     * Q3 = median of n highest data points.
      *
      * @param iqrMulti
      * @return list of outlier products
      */
+
     public List<Product> findPriceOutliers(double iqrMulti) {
 
         //1. Sort all your prices
         List<Product> products = warehouse.getProducts().stream()
                 .sorted(Comparator.comparing(Product::price))
-                .collect(Collectors.toList());
+                .toList();
 
-        //2. Find the 1st quarter Q1, the price at the 25% mark
-        double Q1 = products.get(products.size() / 4).price().doubleValue();
+        if (products.size() < 4)
+            return List.of(); //för små/litet dataset
 
-        //3. Find Q3 the price at the 75% mark
-        double Q3 =  products.get(3 * products.size() / 4).price().doubleValue();
-
+        //2. Find the 1st quarter Q1, the price at the 25% mark - kallar på median metoden under
+        double Q1 = median(products.subList(0, products.size() / 2));
+        //3. Find Q3 the price at the 75% mark - Kallar på median metoden under
+        double Q3 =  median(products.subList((products.size() + 1) / 2, products.size()));
         //4. Caluclate IQR = Q3 - Q1
         double IQR = Q3 - Q1;
-
         //5. Define the normal boundaries. A standard rule is:
         // Lower bound: Q1-1.5 * IQR
         double lowerBound = Q1 - (iqrMulti * IQR);
@@ -179,6 +183,14 @@ class WarehouseAnalyzer {
                 .toList();
 
         return outliers;
+    }
+
+    //Median metod - AI Feedback förslag
+    private double median (List < Product > list) {
+        int size = list.size();
+        return (size % 2 == 0)
+                ? (list.get(size / 2 - 1).price().doubleValue() + list.get(size / 2).price().doubleValue()) / 2
+                : list.get(size / 2).price().doubleValue();
     }
     
     /**

@@ -10,7 +10,9 @@ public class Warehouse {
     Håller listan över alla produkter
      */
     private final List<Product> products = new ArrayList<>();
-    private final List<Product> changedProducts = new ArrayList<>();
+    //HashSet tillåter inte dubletter - unika objekt
+    private final Set<Product> changedProducts = Collections.synchronizedSet(new HashSet<>());
+
     private static final Map<String, Warehouse> INSTANCES = new HashMap<>();
 
     private Warehouse() {}
@@ -38,7 +40,8 @@ public class Warehouse {
 
     //GetProducts
     public List<Product> getProducts() {
-        return products.stream().toList();
+//        return products.stream().copyOf();
+        return List.copyOf(products);
     }
 
     //GetproductBYID - stream find first
@@ -57,12 +60,10 @@ public class Warehouse {
                 .orElseThrow(()-> new NoSuchElementException("Product not found with id: " + uuid));
 
         product.setPrice(newPrice);
-
-        if (!changedProducts.contains(product)){
-            changedProducts.add(product);
-        }
+        changedProducts.add(product); //HashSet förhindrar dupletter, garanterar "uniqueness"
     }
 
+    //use Collections.synchronizedList or validate before adding to ensure uniqueness
     public List<Perishable> expiredProducts(){
         //- expiredProducts(): return List<Perishable> that are expired.
         LocalDate today = LocalDate.now();
