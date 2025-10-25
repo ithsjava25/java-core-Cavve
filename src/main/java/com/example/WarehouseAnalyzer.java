@@ -5,6 +5,7 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -13,12 +14,13 @@ import java.util.stream.Collectors;
  */
 class WarehouseAnalyzer {
     private final Warehouse warehouse;
-    
+
     public WarehouseAnalyzer(Warehouse warehouse) {
         this.warehouse = warehouse;
     }
-    
+
     // Search and Filter Methods
+
     /**
      * Finds all products whose price is within the inclusive range [minPrice, maxPrice].
      * Based on tests: products priced exactly at the boundaries must be included; values outside are excluded.
@@ -37,7 +39,7 @@ class WarehouseAnalyzer {
         }
         return result;
     }
-    
+
     /**
      * Returns all perishable products that expire within the next {@code days} days counting from today,
      * including items that expire today, and excluding items already expired. Non-perishables are ignored.
@@ -60,7 +62,7 @@ class WarehouseAnalyzer {
         }
         return result;
     }
-    
+
     /**
      * Performs a case-insensitive partial name search.
      * Test expectation: searching for "milk" returns all products whose name contains that substring,
@@ -79,7 +81,7 @@ class WarehouseAnalyzer {
         }
         return result;
     }
-    
+
     /**
      * Returns all products whose price is strictly greater than the given price.
      * While not asserted directly by tests, this helper is consistent with price-based filtering.
@@ -96,8 +98,9 @@ class WarehouseAnalyzer {
         }
         return result;
     }
-    
+
     // Analytics Methods
+
     /**
      * Computes the average price per category using product weight as the weighting factor when available.
      * Test expectation: for FoodProduct with weights, use weighted average = sum(price*weight)/sum(weight).
@@ -136,33 +139,56 @@ class WarehouseAnalyzer {
         }
         return result;
     }
-    
+
     /**
-     * Identifies products whose price deviates from the mean by more than the specified
-     * number of standard deviations. Uses population standard deviation over all products.
-     * Test expectation: with a mostly tight cluster and two extremes, calling with 2.0 returns the two extremes.
+     * Identifies price outliers by utilizing IQR algorithm
+     * Q2 = median of the dataset.
+     * Q1 = median of n smallest data points.
+     * Q3 = median of n highest data points.
      *
-     * @param standardDeviations threshold in standard deviations (e.g., 2.0)
-     * @return list of products considered outliers
+     * @param iqrMulti
+     * @return list of outlier products
      */
-    public List<Product> findPriceOutliers(double standardDeviations) {
-        List<Product> products = warehouse.getProducts();
-        int n = products.size();
-        if (n == 0) return List.of();
-        double sum = products.stream().map(Product::price).mapToDouble(bd -> bd.doubleValue()).sum();
-        double mean = sum / n;
-        double variance = products.stream()
-                .map(Product::price)
-                .mapToDouble(bd -> Math.pow(bd.doubleValue() - mean, 2))
-                .sum() / n;
-        double std = Math.sqrt(variance);
-        double threshold = standardDeviations * std;
-        List<Product> outliers = new ArrayList<>();
-        for (Product p : products) {
-            double diff = Math.abs(p.price().doubleValue() - mean);
-            if (diff > threshold) outliers.add(p);
-        }
+
+    public List<Product> findPriceOutliers(double iqrMulti) {
+
+        //1. Sort all your prices
+        List<Product> products = warehouse.getProducts().stream()
+                .sorted(Comparator.comparing(Product::price))
+                .toList();
+
+        if (products.size() < 4)
+            return List.of(); //för små/litet dataset
+
+        //2. Find the 1st quarter Q1, the price at the 25% mark - kallar på median metoden under
+        double Q1 = median(products.subList(0, products.size() / 2));
+        //3. Find Q3 the price at the 75% mark - Kallar på median metoden under
+        double Q3 =  median(products.subList((products.size() + 1) / 2, products.size()));
+        //4. Caluclate IQR = Q3 - Q1
+        double IQR = Q3 - Q1;
+        //5. Define the normal boundaries. A standard rule is:
+        // Lower bound:
+        double lowerBound = Q1 - (iqrMulti * IQR);
+        // Upper bound:
+        double upperBound = Q3 + (iqrMulti * IQR);
+
+        //stream igen för outliers
+        List<Product> outliers = products.stream()
+                .filter(p-> {
+                    double price =  p.price().doubleValue();
+                    return price < lowerBound || price > upperBound;
+                })
+                .toList();
+
         return outliers;
+    }
+
+    //Median metod - AI Feedback förslag
+    private double median (List < Product > list) {
+        int size = list.size();
+        return (size % 2 == 0)
+                ? (list.get(size / 2 - 1).price().doubleValue() + list.get(size / 2).price().doubleValue()) / 2
+                : list.get(size / 2).price().doubleValue();
     }
     
     /**
@@ -176,7 +202,7 @@ class WarehouseAnalyzer {
      */
     public List<ShippingGroup> optimizeShippingGroups(BigDecimal maxWeightPerGroup) {
         double maxW = maxWeightPerGroup.doubleValue();
-        List<Shippable> items = warehouse.shippableProducts();
+        List<Shippable> items = new ArrayList(warehouse.shippableProducts());
         // Sort by descending weight (First-Fit Decreasing)
         items.sort((a, b) -> Double.compare(Objects.requireNonNullElse(b.weight(), 0.0), Objects.requireNonNullElse(a.weight(), 0.0)));
         List<List<Shippable>> bins = new ArrayList<>();
@@ -303,8 +329,11 @@ class ShippingGroup {
     public ShippingGroup(List<Shippable> products) {
         this.products = new ArrayList<>(products);
         this.totalWeight = products.stream()
+//                .map(Shippable::weight)
+//                .reduce(0.0, Double::sum);
                 .map(Shippable::weight)
-                .reduce(0.0, Double::sum);
+                .map(BigDecimal::valueOf)
+                .reduce(BigDecimal.ZERO, BigDecimal::add).doubleValue();
         this.totalShippingCost = products.stream()
                 .map(Shippable::calculateShippingCost)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
